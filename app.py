@@ -5,9 +5,11 @@
 import json
 import dateutil.parser
 import babel
+import datetime
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from flask_migrate import Migrate
 import logging
 from logging import Formatter, FileHandler
@@ -45,7 +47,7 @@ class Venue(db.Model):
     seeking_talent = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String(500))
     genres = db.Column(db.String(120))
-    shows = db.relationship('Show', backref='venue', lazy=True)
+    shows = db.relationship('Show', backref='venue', lazy='dynamic')
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -62,7 +64,7 @@ class Artist(db.Model):
     website = db.Column(db.String(120))
     seeking_venue = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String(500))
-    shows = db.relationship('Show', backref="artist", lazy=True)
+    shows = db.relationship('Show', backref="artist", lazy='dynamic')
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
 class Show(db.Model):
@@ -104,28 +106,32 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data);
+
+  # Get number of areas(cities) available
+  areas = Venue.query.with_entities(Venue.city, func.count(Venue.city)).group_by(Venue.city).all()
+
+  data = []
+
+  for area in areas:
+    # Get all venues in this city
+    venues = Venue.query.filter_by(city=area[0]).all()
+    venues_data = []
+    for venue in venues:
+
+      venues_data.append({
+        "id": venue.id,
+        "name": venue.name,
+        # filter shows having start_time after today's date
+        "num_upcoming_shows": venue.shows.filter(Show.start_time > datetime.now()).count()
+      })
+    
+    data.append({
+      "city": area[0],
+      "state": venues[0].state,
+      "venues": venues_data
+    })
+  
+  return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
