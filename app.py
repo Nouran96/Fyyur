@@ -302,6 +302,17 @@ def edit_venue(venue_id):
 def edit_venue_submission(venue_id):
   # TODO: take values from the form submitted, and update existing
   # venue record with ID <venue_id> using the new attributes
+  venue = Venue.query.get(venue_id)
+
+  venue.name = request.form.get('name', '')
+  venue.city = request.form.get('city', '')
+  venue.state = request.form.get('state', '')
+  venue.address = request.form.get('address', '')
+  venue.phone = request.form.get('phone', '')
+  venue.facebook_link = request.form.get('facebook_link', '')
+  venue.genres = (',').join(request.form.getlist('genres'))
+
+  db.session.commit()
   return redirect(url_for('show_venue', venue_id=venue_id))
 
 #  Create Artist
