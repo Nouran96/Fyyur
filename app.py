@@ -159,6 +159,7 @@ def show_venue(venue_id):
 
   if data.upcoming_shows_count > 0:
     for show in data.upcoming_shows:
+      # Convert Datetime object to String for Template Parser
       show.start_time = show.start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
       show.artist_id = show.artist.id
       show.artist_image_link = show.artist.image_link
@@ -212,16 +213,8 @@ def delete_venue(venue_id):
 @app.route('/artists')
 def artists():
   # TODO: replace with real data returned from querying the database
-  data=[{
-    "id": 4,
-    "name": "Guns N Petals",
-  }, {
-    "id": 5,
-    "name": "Matt Quevedo",
-  }, {
-    "id": 6,
-    "name": "The Wild Sax Band",
-  }]
+  data = Artist.query.with_entities(Artist.id, Artist.name)
+  
   return render_template('pages/artists.html', artists=data)
 
 @app.route('/artists/search', methods=['POST'])
