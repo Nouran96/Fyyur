@@ -6,6 +6,9 @@
 		<h1 class="monospace">
 			{{ venue.name }}
 		</h1>
+
+		<button onclick="deleteVenue(event)" data-id="{{ venue.id }}" class="btn btn-danger btn-small">Delete Venue</button>
+
 		<p class="subtitle">
 			ID: {{ venue.id }}
 		</p>

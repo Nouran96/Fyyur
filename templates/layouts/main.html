@@ -118,5 +118,21 @@
   <script type="text/javascript" src="/static/js/libs/bootstrap-3.1.1.min.js" defer></script>
   <script type="text/javascript" src="/static/js/plugins.js" defer></script>
 
+  <script>
+    function deleteVenue(e) {
+      let id = e.target.dataset['id'];
+        
+      fetch(`/venues/${id}`, {
+        method: 'DELETE'
+      }).then(function(response) {
+          return response.json()
+      }).then(res => {
+        if(res.success) {
+          location.href = '/'
+        }
+      })
+    }
+  </script>
+
 </body>
 </html>

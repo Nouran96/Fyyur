@@ -6,7 +6,7 @@ import json
 import dateutil.parser
 import babel
 import datetime
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -35,10 +35,10 @@ class Venue(db.Model):
     __tablename__ = 'Venue'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
+    name = db.Column(db.String, nullable=False)
+    city = db.Column(db.String(120), nullable=False)
+    state = db.Column(db.String(120), nullable=False)
+    address = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
@@ -46,18 +46,18 @@ class Venue(db.Model):
     website = db.Column(db.String(120))
     seeking_talent = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String(500))
-    genres = db.Column(db.String(120))
+    genres = db.Column(db.String(120), nullable=False)
     shows = db.relationship('Show', backref='venue', lazy='dynamic')
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
+    name = db.Column(db.String, nullable=False)
+    city = db.Column(db.String(120), nullable=False)
+    state = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
+    genres = db.Column(db.String(120), nullable=False)
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
@@ -71,9 +71,9 @@ class Show(db.Model):
   __tablename__ = 'Show'
 
   id = db.Column(db.Integer, primary_key=True)
-  start_time = db.Column(db.DateTime())
-  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'))
-  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'))
+  start_time = db.Column(db.DateTime(), nullable=False)
+  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
+  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
 
 
 #----------------------------------------------------------------------------#
@@ -192,11 +192,11 @@ def create_venue_form():
 def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
-  venue = Venue(name = request.form['name'], city = request.form['city'],
+  try:
+    venue = Venue(name = request.form['name'], city = request.form['city'],
                 state = request.form['state'], address = request.form['address'],
                 phone = request.form['phone'], genres = (',').join(request.form.getlist('genres')),
                 facebook_link = request.form['facebook_link'])
-  try:
     db.session.add(venue)
     db.session.commit()
 
@@ -204,7 +204,10 @@ def create_venue_submission():
     flash('Venue ' + venue.name + ' was successfully listed!')
   except:
   # TODO: on unsuccessful db insert, flash an error instead.
-    flash('An error occurred. Venue ' + venue.name + ' could not be listed.')
+    db.session.rollback()
+    flash('An error occurred. Venue ' + request.form['name'] + ' could not be listed.')
+  finally:
+    db.session.close()
 
   # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
@@ -214,17 +217,23 @@ def create_venue_submission():
 def delete_venue(venue_id):
   # TODO: Complete this endpoint for taking a venue_id, and using
   # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-  venue = Venue.query.get(venue_id)
   try:
-    venue.delete()
-
+    venue = db.session.query(Venue).filter(Venue.id == venue_id).first()
+    db.session.delete(venue)
     db.session.commit()
+    
+    success = True
+    flash('Venue ' + venue.name + ' was successfully deleted!')
   except:
-    flash('An error occurred. Venue ' + venue.name + ' could not be deleted.')
+    db.session.rollback()
+    success = False
+    flash('An error occurred. Venue could not be deleted.')
+  finally:
+    db.session.close()
 
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+  return jsonify({ 'success': success })
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -358,8 +367,12 @@ def create_artist_submission():
   # on successful db insert, flash success
     flash('Artist ' + artist.name + ' was successfully listed!')
   except:
+    db.session.rollback()
   # TODO: on unsuccessful db insert, flash an error instead.
     flash('An error occurred. Artist ' + artist.name + ' could not be listed.')
+  finally:
+    db.session.close()
+
   return render_template('pages/home.html')
 
 
@@ -400,9 +413,12 @@ def create_show_submission():
     flash('Show was successfully listed!')
   # TODO: on unsuccessful db insert, flash an error instead.
   except:
+    db.session.rollback()
   # TODO: on unsuccessful db insert, flash an error instead.
     flash('An error occurred. Show could not be listed.')
   # e.g., flash('An error occurred. Show could not be listed.')
+  finally:
+    db.session.close()
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
   return render_template('pages/home.html')
 
